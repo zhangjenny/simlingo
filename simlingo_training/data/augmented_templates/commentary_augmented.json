@@ -1,0 +1,25 @@
+{
+  "templates": [
+    "I see {object} ahead.",
+    "There's a {object} on the {side}.",
+    "I need to be careful of the {object}.",
+    "The road conditions are {condition}.",
+    "I'm approaching a {feature}.",
+    "The traffic is {traffic_state}.",
+    "I should {action} for safety.",
+    "The weather looks {weather}.",
+    "I notice {observation}.",
+    "This area seems {description}."
+  ],
+  "placeholders": {
+    "object": ["car", "pedestrian", "cyclist", "traffic light", "stop sign", "building", "tree", "obstacle"],
+    "side": ["left", "right", "front", "back"],
+    "condition": ["clear", "wet", "icy", "slippery", "rough"],
+    "feature": ["intersection", "curve", "hill", "bridge", "tunnel"],
+    "traffic_state": ["light", "moderate", "heavy", "congested"],
+    "action": ["slow down", "stop", "yield", "proceed with caution"],
+    "weather": ["clear", "rainy", "foggy", "sunny", "cloudy"],
+    "observation": ["construction work", "road work", "an accident", "a detour"],
+    "description": ["residential", "commercial", "rural", "urban", "industrial"]
+  }
+}

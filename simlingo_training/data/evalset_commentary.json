@@ -1,0 +1,7 @@
+{
+  "sample_commentaries": {
+    "describing_scene": ["sample_path_1", "sample_path_2"],
+    "navigating_intersection": ["sample_path_3", "sample_path_4"],
+    "responding_to_traffic": ["sample_path_5", "sample_path_6"]
+  }
+}

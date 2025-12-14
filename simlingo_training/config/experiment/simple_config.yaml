@@ -1,0 +1,46 @@
+# 简单配置文件，用于直接加载数据而不使用bucket
+defaults:
+  - /data_module: carla_no_buckets
+  - /model/vision_model: vlm 
+  - /data_module/base_dataset: dataset
+  - _self_
+
+model:
+  lr: 3e-5
+  predict_route_as_wps: True
+  speed_wps_mode: 2d
+  language_model:
+    variant: 'meta-llama/Llama-3.2-1B-Instruct'
+    lora: True
+    lora_alpha: 16
+    lora_r: 16
+    lora_dropout: 0.1
+  vision_model:
+    variant: 'OpenGVLab/InternVL2-1B'
+
+data_module:
+  _target_: simlingo_training.dataloader.datamodule.DataModule
+  batch_size: 2
+  num_workers: 0
+  base_dataset:
+    data_path: /root/simlingo/database
+    bucket_path: /root/simlingo/database/bucketsv2_simlingo  # 保持原样但不会被使用
+    pred_len: 11
+    cut_bottom_quarter: True
+    use_commentary: False
+    use_qa: False
+    qa_augmentation: False
+    img_shift_augmentation: False
+    hist_len: 1
+    route_as: target_point_command
+    use_lmdrive_commands: True
+    use_old_towns: True
+    use_town13: True
+    bucket_name: all
+    use_safety_flag: False
+
+max_epochs: 5
+val_every_n_epochs: 1
+gpus: 1
+seed: 42
+name: simple_config

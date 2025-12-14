@@ -72,9 +72,13 @@ class Data_Driving(BaseDataset):  # pylint: disable=locally-disabled, invalid-na
 
         data = self.load_route(data, current_measurement, aug_translation, aug_rotation)
 
-        target_point = np.array(current_measurement['target_point'])
+        # Use x_target and y_target to create target_point
+        target_point = np.array([current_measurement['x_target'], current_measurement['y_target']])
         target_point = self.augment_target_point(target_point, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
-        next_target_point = np.array(current_measurement['target_point_next'])
+        
+        # For next_target_point, use the same target point or a future point if available
+        # Since we don't have target_point_next, use the same target point for now
+        next_target_point = np.array([current_measurement['x_target'], current_measurement['y_target']])
         next_target_point = self.augment_target_point(next_target_point, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
 
         ######################################################

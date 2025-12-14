@@ -42,6 +42,7 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
         for key, value in cfg.items():
             setattr(self, key, value)
 
+        # Initialize image augmenter after all config parameters are set
         self.tfs = image_augmenter(prob=self.img_augmentation_prob)
 
         filter_infractions_per_route = True
@@ -141,61 +142,66 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
 
         if not self.bucket_name == "all":
-            with open(f"{repo_path}/" + self.bucket_path + '/buckets_paths.pkl', 'rb') as f:
-                bucket_dict = pkl.load(f)
+            try:
+                with open(f"{repo_path}/" + self.bucket_path + '/buckets_paths.pkl', 'rb') as f:
+                    bucket_dict = pkl.load(f)
 
-            bucket_run_ids = None
+                bucket_run_ids = None
 
-            # TODO: this is stupid that its manual, should change bucket names to match the saved dict with pathes
-            if self.bucket_name == "all":
-                pass
-            elif self.bucket_name == 'acceleration_negative_5':
-                bucket_run_ids = bucket_dict['acceleration_-5']# + bucket_dict['acceleration_-20'] + bucket_dict['acceleration_-40']
-            elif self.bucket_name == "acceleration_negative_1":
-                bucket_run_ids = bucket_dict['acceleration_-1']
-            elif self.bucket_name == "acceleration_positive_1":
-                bucket_run_ids = bucket_dict['acceleration_5']
-            elif self.bucket_name == "acceleration_positive_5":
-                bucket_run_ids = bucket_dict['acceleration_20']# + bucket_dict['acceleration_40'] + bucket_dict['acceleration_1000000']
-            elif self.bucket_name == "lateral_control_1":
-                bucket_run_ids = bucket_dict['lateral_control_1']
-            elif self.bucket_name == "lateral_control_1_2":
-                bucket_run_ids = bucket_dict['lateral_control_1'] + bucket_dict['lateral_control_2']
-            elif self.bucket_name == "lateral_control_high":
-                bucket_run_ids = bucket_dict['lateral_control_2'] + bucket_dict['lateral_control_5'] + bucket_dict['lateral_control_1000000']
-            elif self.bucket_name == "lateral_control_higher_5":
-                bucket_run_ids = bucket_dict['lateral_control_5'] + bucket_dict['lateral_control_1000000']
-            elif self.bucket_name == "recovery":
-                bucket_run_ids = bucket_dict['recovery_data_small'] + bucket_dict['recovery_data_large']
-            else:
-                if self.bucket_name not in bucket_dict:
-                    raise ValueError(f"Bucket name {self.bucket_name} not found.")
-                bucket_run_ids = bucket_dict[self.bucket_name]
+                # TODO: this is stupid that its manual, should change bucket names to match the saved dict with pathes
+                if self.bucket_name == "all":
+                    pass
+                elif self.bucket_name == 'acceleration_negative_5':
+                    bucket_run_ids = bucket_dict['acceleration_-5']# + bucket_dict['acceleration_-20'] + bucket_dict['acceleration_-40']
+                elif self.bucket_name == "acceleration_negative_1":
+                    bucket_run_ids = bucket_dict['acceleration_-1']
+                elif self.bucket_name == "acceleration_positive_1":
+                    bucket_run_ids = bucket_dict['acceleration_5']
+                elif self.bucket_name == "acceleration_positive_5":
+                    bucket_run_ids = bucket_dict['acceleration_20']# + bucket_dict['acceleration_40'] + bucket_dict['acceleration_1000000']
+                elif self.bucket_name == "lateral_control_1":
+                    bucket_run_ids = bucket_dict['lateral_control_1']
+                elif self.bucket_name == "lateral_control_1_2":
+                    bucket_run_ids = bucket_dict['lateral_control_1'] + bucket_dict['lateral_control_2']
+                elif self.bucket_name == "lateral_control_high":
+                    bucket_run_ids = bucket_dict['lateral_control_2'] + bucket_dict['lateral_control_5'] + bucket_dict['lateral_control_1000000']
+                elif self.bucket_name == "lateral_control_higher_5":
+                    bucket_run_ids = bucket_dict['lateral_control_5'] + bucket_dict['lateral_control_1000000']
+                elif self.bucket_name == "recovery":
+                    bucket_run_ids = bucket_dict['recovery_data_small'] + bucket_dict['recovery_data_large']
+                else:
+                    if self.bucket_name not in bucket_dict:
+                        raise ValueError(f"Bucket name {self.bucket_name} not found.")
+                    bucket_run_ids = bucket_dict[self.bucket_name]
 
-            run_id_dict = {}
-            if bucket_run_ids is not None:
-                for run_id in bucket_run_ids:
-                    run_id = run_id.replace('database/simlingo_v2_2025_01_10', self.bucket_path)
-                    run_id_path = Path(run_id)
-                    run_id_parent = run_id_path.parent
-                    run_id_name = run_id_path.name
-                    run_id_absolut = str(run_id_parent)
-                    run_id_absolut = f"{repo_path}/{str(run_id_parent)}"
-                    if run_id_absolut not in run_id_dict:
-                        run_id_dict[run_id_absolut] = [run_id_name]
-                    else:
-                        run_id_dict[run_id_absolut].append(run_id_name)
+                run_id_dict = {}
+                if bucket_run_ids is not None:
+                    for run_id in bucket_run_ids:
+                        run_id = run_id.replace('database/simlingo_v2_2025_01_10', self.bucket_path)
+                        run_id_path = Path(run_id)
+                        run_id_parent = run_id_path.parent
+                        run_id_name = run_id_path.name
+                        run_id_absolut = str(run_id_parent)
+                        run_id_absolut = f"{repo_path}/{str(run_id_parent)}"
+                        if run_id_absolut not in run_id_dict:
+                            run_id_dict[run_id_absolut] = [run_id_name]
+                        else:
+                            run_id_dict[run_id_absolut].append(run_id_name)
+            except FileNotFoundError:
+                print(f"Warning: buckets_paths.pkl not found at {self.bucket_path}, skipping bucket filtering")
+                self.bucket_name = "all"
+                run_id_dict = None
 
 
-        route_dirs = glob.glob(f"{repo_path}/" + self.data_path + '/data/simlingo/*/*/*/Town*')
-        print(f'Found {len(route_dirs)} routes in {repo_path + self.data_path}')
+        route_dirs = glob.glob(self.data_path + '/*Town*')
+        print(f'Found {len(route_dirs)} routes in {self.data_path}')
         
         if not self.use_old_towns:
             route_dirs = [route_dir for route_dir in route_dirs if 'lb1_split' not in route_dir]
-            print(f'Found {len(route_dirs)} routes in {repo_path + self.data_path} after filtering out old towns')
+            print(f'Found {len(route_dirs)} routes in {self.data_path} after filtering out old towns')
         elif self.use_only_old_towns or self.bucket_name == "old_towns":
             route_dirs = [route_dir for route_dir in route_dirs if 'lb1_split' in route_dir]
-            print(f'Found {len(route_dirs)} routes in {repo_path + self.data_path} after filtering out non old towns')
+            print(f'Found {len(route_dirs)} routes in {self.data_path} after filtering out non old towns')
         
 
         random.shuffle(route_dirs)
@@ -204,11 +210,13 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
             # split the data into official training(Town12 and old Towns) and validation set (Town13)
             if self.split == "train":
                 print("Using Town12 for training")
-                route_dirs = [route_dir for route_dir in route_dirs if 'routes_training' in route_dir]
+                route_dirs = [route_dir for route_dir in route_dirs if 'Town12' in route_dir]
             elif self.split == "val":
                 print("Using Town13 for validation")
-                route_dirs = [route_dir for route_dir in route_dirs if 'routes_validation' in route_dir]
-                route_dirs = route_dirs[:int(0.02 * len(route_dirs))]
+                route_dirs = [route_dir for route_dir in route_dirs if 'Town13' in route_dir]
+                # 确保至少使用1条路线，即使只有少量Town13路线
+                min_routes = max(1, int(0.02 * len(route_dirs)))
+                route_dirs = route_dirs[:min_routes]
         else:
             # use all towns
             if self.split == "train":
@@ -221,6 +229,9 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
         # route_dirs = route_dirs[:100]
         print(f'Use {len(route_dirs)} routes.')
         
+        # Disable results.json.gz check since the files don't exist in the current dataset
+        filter_infractions_per_route = False
+        
         for sub_root in tqdm(route_dirs, file=sys.stdout):
 
             route_dir = sub_root # + '/' + route
@@ -229,50 +240,51 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 if not os.path.exists(dreamer_dir):
                     continue
 
-            if filter_infractions_per_route:
-                if not os.path.isfile(route_dir + '/results.json.gz'):
-                    total_routes += 1
-                    crashed_routes += 1
-                    if "no_results.json" not in fail_reasons:
-                        fail_reasons["no_results.json"] = 1
-                    else:
-                        fail_reasons["no_results.json"] += 1
-                    continue
-
-                with gzip.open(route_dir + '/results.json.gz', 'rt') as f:
-                    total_routes += 1
-                    try:
-                        results_route = ujson.load(f)
-                    except Exception as e:
-                        print(f"Error in {route_dir}")
-                        print(e)
-                        if "results.json_load_error" not in fail_reasons:
-                            fail_reasons["results.json_load_error"] = 1
-                        else:
-                            fail_reasons["results.json_load_error"] += 1
-                        continue
-
-                if results_route['scores']['score_composed'] < 100.0:  # we also count imperfect runs as failed (except minspeedinfractions)
-                    cond1 = results_route['scores']['score_route'] > 94.0  # we allow 6% of the route score to be missing
-                    cond2 = results_route['num_infractions'] == (len(results_route['infractions']['min_speed_infractions']) + len(results_route['infractions']['outside_route_lanes']))
-                    if not (cond1 and cond2):  # if the only problem is minspeedinfractions, keep it
-                        crashed_routes += 1
-                        if "route_crashed" not in fail_reasons:
-                            fail_reasons["route_crashed"] = 1
-                        else:
-                            fail_reasons["route_crashed"] += 1
-                        continue
-
+            # Skip results.json.gz check since files don't exist
             perfect_routes += 1
 
-            # if not os.path.exists(route_dir + f'/{self.rgb_folder}'):
-            #     if "no_rgb_folder" not in fail_reasons:
-            #         fail_reasons["no_rgb_folder"] = 1
-            #     else:
-            #         fail_reasons["no_rgb_folder"] += 1
-            #     continue
+            # Check if rgb folder exists
+            if not os.path.exists(route_dir + f'/{self.rgb_folder}'):
+                # Try alternative path structure
+                if os.path.exists(route_dir + '/camera'):
+                    self.rgb_folder = 'camera'
+                else:
+                    if "no_rgb_folder" not in fail_reasons:
+                        fail_reasons["no_rgb_folder"] = 1
+                    else:
+                        fail_reasons["no_rgb_folder"] += 1
+                    continue
 
-            num_seq = len(os.listdir(route_dir + f'/{self.rgb_folder}'))
+            # Check for image files in subdirectories
+            image_files_found = False
+            camera_subdirs = [d for d in os.listdir(route_dir + f'/{self.rgb_folder}') 
+                            if os.path.isdir(os.path.join(route_dir, self.rgb_folder, d))]
+            
+            # Try to find image files in subdirectories
+            image_subdir = None
+            for subdir in camera_subdirs:
+                subdir_path = os.path.join(route_dir, self.rgb_folder, subdir)
+                # Check if this subdirectory contains image files
+                image_files = [f for f in os.listdir(subdir_path) if f.endswith(('.jpg', '.png', '.jpeg'))]
+                if image_files:
+                    image_subdir = subdir
+                    image_files_found = True
+                    break
+            
+            if not image_files_found:
+                if "no_image_files" not in fail_reasons:
+                    fail_reasons["no_image_files"] = 1
+                else:
+                    fail_reasons["no_image_files"] += 1
+                continue
+
+            # Use the first subdirectory that contains images
+            self.image_subdir = image_subdir
+            
+            # Count number of sequences based on image files in subdirectory
+            image_dir_path = os.path.join(route_dir, self.rgb_folder, self.image_subdir)
+            image_files = sorted([f for f in os.listdir(image_dir_path) if f.endswith(('.jpg', '.png', '.jpeg'))])
+            num_seq = len(image_files)
 
             for seq in range(self.skip_first_n_frames, num_seq - self.pred_len - self.hist_len - 1):
                 image = []
@@ -280,7 +292,15 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 measurement = []
                 augment_exist = False
 
-                measurement_file = route_dir + '/measurements' + f'/{(seq + self.hist_len-1):04}.json.gz'
+                # Try alternative measurement paths
+                measurement_file = None
+                if os.path.exists(route_dir + '/measurements'):
+                    measurement_file = route_dir + '/measurements' + f'/{(seq + self.hist_len-1):05}.json.gz'
+                elif os.path.exists(route_dir + '/anno'):
+                    measurement_file = route_dir + '/anno' + f'/{(seq + self.hist_len-1):05}.json.gz'
+                
+                if measurement_file is None or not os.path.exists(measurement_file):
+                    continue
 
                 if evaluation and measurement_file not in self.all_eval_samples:
                     continue
@@ -290,28 +310,55 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     if not os.path.exists(dreamer_file_path):
                         continue
                  
-                if self.bucket_name is not None and self.bucket_name != "all":
-                    measurement_file_path = Path(measurement_file)
-                    if str(measurement_file_path.parent) in run_id_dict:
-                        if measurement_file_path.name not in run_id_dict[str(measurement_file_path.parent)]:
-                            if "measurement_file_not_in_bucket" not in fail_reasons:
-                                fail_reasons["measurement_file_not_in_bucket"] = 1
-                            else:
-                                fail_reasons["measurement_file_not_in_bucket"] += 1
-                            continue
-                    else:
-                        if "measurement_folder_not_in_bucket" not in fail_reasons:
-                            fail_reasons["measurement_folder_not_in_bucket"] = 1
-                        else:
-                            fail_reasons["measurement_folder_not_in_bucket"] += 1
-                        continue
+                # Skip bucket filtering since buckets_paths.pkl doesn't exist
+                # if self.bucket_name is not None and self.bucket_name != "all":
+                #     measurement_file_path = Path(measurement_file)
+                #     if str(measurement_file_path.parent) in run_id_dict:
+                #         if measurement_file_path.name not in run_id_dict[str(measurement_file_path.parent)]:
+                #             if "measurement_file_not_in_bucket" not in fail_reasons:
+                #                 fail_reasons["measurement_file_not_in_bucket"] = 1
+                #             else:
+                #                 fail_reasons["measurement_file_not_in_bucket"] += 1
+                #             continue
+                #     else:
+                #         if "measurement_folder_not_in_bucket" not in fail_reasons:
+                #             fail_reasons["measurement_folder_not_in_bucket"] = 1
+                #         else:
+                #             fail_reasons["measurement_folder_not_in_bucket"] += 1
+                #         continue
 
                 # Loads the current (and past) frames (if seq_len > 1)
                 skip = False
                 augment_exist = True
                 for idx in range(self.hist_len):
-                    image.append(route_dir +  f'/{self.rgb_folder}' + (f'/{(seq + idx):04}.jpg'))
-                    box.append(route_dir + '/boxes' + (f'/{(seq + idx):04}.json.gz'))
+                    # Build image path with subdirectory support
+                    image_filename = f'{(seq + idx):05}'
+                    image_path = os.path.join(route_dir, self.rgb_folder, self.image_subdir, image_filename)
+                    
+                    # Try different file extensions
+                    image_file = None
+                    for ext in ['.png', '.jpg', '.jpeg']:
+                        if os.path.exists(image_path + ext):
+                            image_file = image_path + ext
+                            break
+                    
+                    if image_file is None:
+                        skip = True
+                        break
+                    
+                    image.append(image_file)
+                    
+                    # Try alternative box paths
+                    box_file = None
+                    if os.path.exists(route_dir + '/boxes'):
+                        box_file = route_dir + '/boxes' + (f'/{(seq + idx):05}.json.gz')
+                    elif os.path.exists(route_dir + '/anno'):
+                        box_file = route_dir + '/anno' + (f'/{(seq + idx):05}.json.gz')
+                    
+                    if box_file is None or not os.path.exists(box_file):
+                        skip = True
+                        break
+                    box.append(box_file)
 
                 if skip:
                     if "file_not_found" not in fail_reasons:
@@ -320,7 +367,13 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
                         fail_reasons["file_not_found"] += 1
                     continue
 
-                measurement.append(route_dir + '/measurements')
+                # Use alternative measurement path
+                if os.path.exists(route_dir + '/measurements'):
+                    measurement.append(route_dir + '/measurements')
+                elif os.path.exists(route_dir + '/anno'):
+                    measurement.append(route_dir + '/anno')
+                else:
+                    continue
 
                 self.images.append(image)
                 self.boxes.append(box)
@@ -365,7 +418,7 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         # Since we load measurements for future time steps, we load and store them separately
         for i in range(self.hist_len):
-            measurement_file = str(measurements[0], encoding='utf-8') + (f'/{(sample_start + i):04}.json.gz')
+            measurement_file = str(measurements[0], encoding='utf-8') + (f'/{(sample_start + i):05}.json.gz')
 
             with gzip.open(measurement_file, 'rt') as f1:
                 measurements_i = ujson.load(f1)
@@ -376,7 +429,7 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         for i in range(start, end):
             try:
-                measurement_file = str(measurements[0], encoding='utf-8') + (f'/{(sample_start + i):04}.json.gz')
+                measurement_file = str(measurements[0], encoding='utf-8') + (f'/{(sample_start + i):05}.json.gz')
 
                 with gzip.open(measurement_file, 'rt') as f1:
                     measurements_i = ujson.load(f1)
@@ -386,7 +439,7 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 print(f"File not found: {measurement_file}")
                 loaded_measurements.append(loaded_measurements[-1])
         current_measurement = loaded_measurements[self.hist_len - 1]
-        measurement_file_current = str(measurements[0], encoding='utf-8') + (f'/{(sample_start + start-1):04}.json.gz')
+        measurement_file_current = str(measurements[0], encoding='utf-8') + (f'/{(sample_start + start-1):05}.json.gz')
         return loaded_measurements, current_measurement, measurement_file_current
 
     def load_waypoints(self, data, loaded_measurements, aug_translation=0.0, aug_rotation=0.0):
@@ -417,12 +470,23 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
         return data
     
     def load_route(self, data, current_measurement, aug_translation=0.0, aug_rotation=0.0):
-        route = current_measurement['route_original']
-        route = self.augment_route(route, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
-
-        route_adjusted = np.array(current_measurement['route'])
+        # Build route from available command points
+        # Use current position and command points to create a simple route
+        current_x = current_measurement['x']
+        current_y = current_measurement['y']
+        
+        # Create route points: current position -> near command -> far command
+        route_points = [
+            [current_x, current_y],
+            [current_measurement['x_command_near'], current_measurement['y_command_near']],
+            [current_measurement['x_command_far'], current_measurement['y_command_far']]
+        ]
+        
+        route = self.augment_route(route_points, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
+        route_adjusted = np.array(route_points)
         route_adjusted_org = self.augment_route(route_adjusted, y_augmentation=0, yaw_augmentation=0)
         route_adjusted = self.augment_route(route_adjusted, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
+        
         if len(route) < self.num_route_points:
             num_missing = self.num_route_points - len(route)
             route = np.array(route)
@@ -518,20 +582,21 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 5: [34, 36],
                 6: [35, 37],
             }
-            command = map_command[current_measurement["command"]]
-            next_command = map_command[current_measurement["next_command"]]
+            # Use command_near and command_far as command and next_command
+            command = map_command[current_measurement["command_near"]]
+            next_command = map_command[current_measurement["command_far"]]
             if command != next_command:
                 next_command = f' then {next_command}'
             else:
                 next_command = ''
-            if current_measurement["command"] == 4:
+            if current_measurement["command_near"] == 4:
                 command_str = f'Command: {command}{next_command}.'
             else:
                 command_str = f'Command: {command} in {dist_to_command} meter{next_command}.'
             target_options.append(command_str)
             
             if self.use_lmdrive_commands:
-                lmdrive_index = random.choice(command_template_mappings[current_measurement["command"]])
+                lmdrive_index = random.choice(command_template_mappings[current_measurement["command_near"]])
                 lmdrive_command = random.choice(self.command_templates[str(lmdrive_index)])
                 lmdrive_command = lmdrive_command.replace('[x]', str(dist_to_command))
                 lm_command = f'Command: {lmdrive_command}.'
@@ -783,16 +848,31 @@ class BaseDataset(Dataset):  # pylint: disable=locally-disabled, invalid-name
         return route_img
 
     def get_waypoints(self, measurements, y_augmentation=0.0, yaw_augmentation=0.0):
-        """transform waypoints to be origin at ego_matrix"""
+        """transform waypoints to be origin at ego position"""
         origin = measurements[0]
-        origin_matrix = np.array(origin['ego_matrix'])[:3]
-        origin_translation = origin_matrix[:, 3:4]
-        origin_rotation = origin_matrix[:, :3]
+        # Build ego_matrix from available data
+        origin_x = origin['x']
+        origin_y = origin['y']
+        origin_theta = origin['theta']
+        
+        # Create transformation matrix from origin
+        cos_theta = np.cos(origin_theta)
+        sin_theta = np.sin(origin_theta)
+        
+        origin_rotation = np.array([[cos_theta, -sin_theta, 0],
+                                   [sin_theta, cos_theta, 0],
+                                   [0, 0, 1]])
+        origin_translation = np.array([[origin_x], [origin_y], [0]])
 
         waypoints = []
         for index in range(len(measurements)):
-            waypoint = np.array(measurements[index]['ego_matrix'])[:3, 3:4]
-            waypoint_ego_frame = origin_rotation.T @ (waypoint - origin_translation)
+            measurement = measurements[index]
+            waypoint_x = measurement['x']
+            waypoint_y = measurement['y']
+            waypoint_z = 0  # Assume ground level
+            
+            waypoint_world = np.array([[waypoint_x], [waypoint_y], [waypoint_z]])
+            waypoint_ego_frame = origin_rotation.T @ (waypoint_world - origin_translation)
             # Drop the height dimension because we predict waypoints in BEV
             waypoints.append(waypoint_ego_frame[:2, 0])
 

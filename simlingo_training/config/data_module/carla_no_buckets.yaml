@@ -1,3 +1,7 @@
-
+_target_: simlingo_training.dataloader.datamodule.DataModule
 defaults:
   - driving
+batch_size: 2
+num_workers: 0
+base_dataset:
+  data_path: /root/simlingo/Bench2Drive-Mini

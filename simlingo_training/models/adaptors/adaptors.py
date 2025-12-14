@@ -224,15 +224,22 @@ class DrivingAdaptor(nn.Module):
 class LanguageAdaptor(nn.Module):
     def __init__(self, language_model):
         super().__init__()
-        self.embed_tokens = language_model.model.embed_tokens
-        if hasattr(language_model.model, "lm_head"):
+        # Access embed_tokens directly from language_model instance
+        self.embed_tokens = language_model.embed_tokens
+        
+        # Try to get lm_head from different possible locations
+        if hasattr(language_model, 'lm_head'):
+            self.lm_head = language_model.lm_head
+        elif hasattr(language_model, 'model') and hasattr(language_model.model, 'lm_head'):
             self.lm_head = language_model.model.lm_head
-        elif hasattr(language_model.model, "embed_out"):
+        elif hasattr(language_model, 'model') and hasattr(language_model.model, 'embed_out'):
             self.lm_head = language_model.model.embed_out
-        elif hasattr(language_model.model.base_model.model, 'output'):
-            self.lm_head = language_model.model.base_model.model.output
+        elif hasattr(language_model, 'model') and hasattr(language_model.model, 'output'):
+            self.lm_head = language_model.model.output
         else:
-            raise ValueError("Language model must have `lm_head` or `embed_out` attribute.")
+            # If no lm_head found, use identity mapping
+            self.lm_head = nn.Identity()
+            print("Warning: No lm_head found, using identity mapping")
 
 
     def forward(self, example: DrivingExample, inference=False, **kwargs) -> Dict[str, Tensor]:

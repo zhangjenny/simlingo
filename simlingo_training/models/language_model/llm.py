@@ -1,5 +1,3 @@
-
-
 from transformers import LlamaModel, LlamaConfig, AutoTokenizer, AutoModelForCausalLM, AutoConfig
 from transformers import GPTNeoXForCausalLM
 from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
@@ -52,14 +50,16 @@ class LLM(nn.Module):
             ):
         super().__init__()
         for key, value in cfg.items():
-            setattr(self, key, value)
+            # Skip setting 'model' attribute as it will be created during model loading
+            if key != 'model':
+                setattr(self, key, value)
 
         if 'pythia' in self.variant:
             raise ValueError(f"Carefull: Variant {self.variant} not tested.")
             self.variant = f'EleutherAI/{self.variant}'
             self.model = GPTNeoXForCausalLM.from_pretrained(self.variant, trust_remote_code=True)
             self.tokenizer = AutoTokenizer.from_pretrained(self.variant, torch_dtype="auto",  trust_remote_code=True)
-            self.model.embed_tokens = self.model.base_model.embed_in
+            self.embed_tokens = self.model.base_model.embed_in
         elif 'paligemma' in self.variant:
             raise ValueError(f"Carefull: Variant {self.variant} not tested.")
             self.variant = f'google/{self.variant}'
@@ -69,28 +69,67 @@ class LLM(nn.Module):
                 torch_dtype="auto",
                 revision="float16",
             ).language_model
-            self.model.embed_tokens = self.model.base_model.embed_tokens
+            self.embed_tokens = self.model.base_model.embed_tokens
             self.tokenizer = AutoProcessor.from_pretrained(self.variant, torch_dtype="auto").tokenizer
         elif 'TinyLlama' in self.variant:
             raise ValueError(f"Carefull: Variant {self.variant} not tested.")
             print('Loading pretrained model')
             self.model = AutoModelForCausalLM.from_pretrained(self.variant, trust_remote_code=True)
             self.tokenizer = AutoTokenizer.from_pretrained(self.variant, torch_dtype="auto",  trust_remote_code=True)
-            self.model.embed_tokens = self.model.base_model.embed_tokens
+            self.embed_tokens = self.model.base_model.embed_tokens
         elif 'llava-v1.6' in self.variant:
             raise ValueError(f"Carefull: Variant {self.variant} not tested.")
             print('Loading pretrained model')
             self.model = LlavaNextForConditionalGeneration.from_pretrained(self.variant, trust_remote_code=True)
             self.tokenizer = LlavaNextProcessor.from_pretrained(self.variant, torch_dtype="auto",  trust_remote_code=True).tokenizer
             self.model = self.model.language_model
-            self.model.embed_tokens = self.model.base_model.embed_tokens
+            self.embed_tokens = self.model.base_model.embed_tokens
         elif 'internvl' in self.variant.lower():
             self.model = AutoModel.from_pretrained(self.variant, trust_remote_code=True)
-            self.model = self.model.language_model
+            # For InternVL models, use the full model directly instead of language_model
+            # since language_model might be None in some configurations
+            self.embed_tokens = None
             try:
-                self.model.embed_tokens = self.model.base_model.embed_tokens
+                self.embed_tokens = self.model.base_model.embed_tokens
+            except Exception as e:
+                print(f"Failed to get embed_tokens from base_model: {e}")
+                try:
+                    self.embed_tokens = self.model.model.tok_embeddings
+                except Exception as e:
+                    print(f"Failed to get tok_embeddings from model: {e}")
+                    # If neither works, try to access embed_tokens directly
+                    if hasattr(self.model, 'embed_tokens'):
+                        self.embed_tokens = self.model.embed_tokens
+                        print("Found embed_tokens directly on model")
+                    else:
+                        # Last resort: try to find the embedding layer
+                        for name, module in self.model.named_modules():
+                            if 'embed' in name.lower() and hasattr(module, 'weight'):
+                                self.embed_tokens = module
+                                print(f"Found embedding layer: {name}")
+                                break
+            
+            if self.embed_tokens is None:
+                print("WARNING: Could not find embed_tokens for InternVL model")
+                print("Available attributes on model:", dir(self.model))
+                if hasattr(self.model, 'base_model'):
+                    print("Available attributes on base_model:", dir(self.model.base_model))
+                if hasattr(self.model, 'model'):
+                    print("Available attributes on model.model:", dir(self.model.model))
+            # Set tokenizer for InternVL models
+            self.tokenizer = AutoTokenizer.from_pretrained(self.variant, trust_remote_code=True)
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+        elif 'llama' in self.variant.lower() or 'meta-llama' in self.variant.lower() or 'qwen2' in self.variant.lower():
+            # Handle Llama models including meta-llama variants and Qwen2 models
+            self.model = AutoModelForCausalLM.from_pretrained(self.variant, trust_remote_code=True)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.variant, trust_remote_code=True)
+            try:
+                self.embed_tokens = self.model.base_model.embed_tokens
             except:
-                self.model.embed_tokens = self.model.model.tok_embeddings
+                self.embed_tokens = self.model.model.embed_tokens
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
         else:
             raise ValueError(f"Carefull: Variant {self.variant} not tested.")
             config_overrides = CONFIGS[self.variant].copy()
@@ -99,7 +138,7 @@ class LLM(nn.Module):
             # self.model = LlamaForCausalLM(configuration)
             self.model = LlamaModel(configuration)
             self.tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-1_5")
-            self.model.embed_tokens = self.model.base_model.embed_tokens
+            self.embed_tokens = self.model.base_model.embed_tokens
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
 
@@ -118,9 +157,16 @@ class LLM(nn.Module):
             self.model = get_peft_model(self.model, peft_config)
             self.model.print_trainable_parameters()
 
-        self.vocab_size = self.model.config.vocab_size
-        self.hidden_size = self.model.config.hidden_size
-        self.max_position_embeddings = self.model.config.max_position_embeddings
+        # Handle different model configurations
+        if 'internvl' in self.variant.lower():
+            # For InternVL models, get config from tokenizer or use default values
+            self.vocab_size = len(self.tokenizer) if hasattr(self.tokenizer, '__len__') else 32000
+            self.hidden_size = getattr(self.model.config, 'hidden_size', 2048)
+            self.max_position_embeddings = getattr(self.model.config, 'max_position_embeddings', 4096)
+        else:
+            self.vocab_size = self.model.config.vocab_size
+            self.hidden_size = self.model.config.hidden_size
+            self.max_position_embeddings = self.model.config.max_position_embeddings
 
 
     def forward(self,

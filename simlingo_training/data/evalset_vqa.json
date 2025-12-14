@@ -1,0 +1,12 @@
+{
+  "sample_questions": {
+    "what_color_is_the_car": {
+      "red": ["sample_path_1"],
+      "blue": ["sample_path_2"]
+    },
+    "what_type_of_vehicle": {
+      "car": ["sample_path_3"],
+      "truck": ["sample_path_4"]
+    }
+  }
+}

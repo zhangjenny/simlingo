@@ -20,6 +20,8 @@ class LanguageModelConfig:
     lora_alpha: int = 64
     lora_r: int = 32
     lora_dropout: float = 0.1
+    hidden_size: int = 2048
+    model: Optional[Any] = None
 
     _target_: str = "simlingo_training.models.language_model.llm.LLM"
 
@@ -74,8 +76,7 @@ class DatasetBaseConfig:
     use_lmdrive_commands: bool = True
 
 @dataclass
-class DrivingDatasetConfig:
-    # base: DatasetBaseConfig = field(default_factory=DatasetBaseConfig)
+class DrivingDatasetConfig(DatasetBaseConfig):
     _target_: str = "simlingo_training.dataloader.dataset_driving.Data_Driving"
     
 @dataclass

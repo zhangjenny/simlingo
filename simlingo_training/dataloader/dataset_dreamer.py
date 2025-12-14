@@ -74,9 +74,10 @@ class Data_Dreamer(BaseDataset):  # pylint: disable=locally-disabled, invalid-na
 
         data = self.load_route(data, current_measurement, aug_translation, aug_rotation)
 
-        target_point = np.array(current_measurement['target_point'])
+        # Use command points as target points since 'target_point' key doesn't exist in the data
+        target_point = np.array([current_measurement['x_command_near'], current_measurement['y_command_near']])
         target_point = self.augment_target_point(target_point, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
-        next_target_point = np.array(current_measurement['target_point_next'])
+        next_target_point = np.array([current_measurement['x_command_far'], current_measurement['y_command_far']])
         next_target_point = self.augment_target_point(next_target_point, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
 
         ######################################################
@@ -91,9 +92,32 @@ class Data_Dreamer(BaseDataset):  # pylint: disable=locally-disabled, invalid-na
             if 'factor' in key:
                 continue
             
-            options.extend(option)
+            # Check if option is a list before extending
+            if isinstance(option, list):
+                # Filter out non-dict elements from the list
+                dict_options = [item for item in option if isinstance(item, dict)]
+                # Filter dicts that have required keys
+                valid_dict_options = [item for item in dict_options if 
+                                    'route' in item and 'waypoints' in item and 
+                                    'dreamer_instruction' in item]
+                options.extend(valid_dict_options)
+            elif isinstance(option, dict):
+                # If option is a dict, check if it has required keys
+                if 'route' in option and 'waypoints' in option and 'dreamer_instruction' in option:
+                    options.append(option)
+            # Skip non-dict and non-list options
 
-        chosen_option = random.choice(options)
+        # Ensure we have valid options before choosing
+        if not options:
+            # Fallback to using original data if no valid options
+            chosen_option = {
+                'route': 'org',
+                'waypoints': 'org',
+                'dreamer_instruction': ['Follow the route'],
+                'safe_to_execute': True
+            }
+        else:
+            chosen_option = random.choice(options)
 
         # replace 'org' with the original route
         if chosen_option['route'] == 'org':

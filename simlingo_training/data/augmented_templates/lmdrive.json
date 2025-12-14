@@ -1,0 +1,26 @@
+{
+  "templates": [
+    "Turn {direction} at the next intersection.",
+    "Continue straight for {distance} meters.",
+    "Change lanes to the {lane} lane.",
+    "Slow down for the {obstacle} ahead.",
+    "Stop at the {stop_point}.",
+    "Accelerate to {speed} km/h.",
+    "Maintain a safe distance from the {vehicle}.",
+    "Follow the {route}.",
+    "Yield to {traffic}.",
+    "Merge into {lane_type}."
+  ],
+  "placeholders": {
+    "direction": ["left", "right"],
+    "distance": ["100", "200", "500", "1000"],
+    "lane": ["left", "right", "middle"],
+    "obstacle": ["pedestrian", "traffic light", "stop sign", "construction"],
+    "stop_point": ["stop sign", "traffic light", "crosswalk", "intersection"],
+    "speed": ["30", "50", "60", "80"],
+    "vehicle": ["car ahead", "truck", "bus", "motorcycle"],
+    "route": ["main road", "highway", "side street", "designated path"],
+    "traffic": ["pedestrians", "oncoming traffic", "emergency vehicles"],
+    "lane_type": ["the left lane", "the right lane", "the merging lane"]
+  }
+}

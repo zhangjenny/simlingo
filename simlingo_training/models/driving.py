@@ -67,11 +67,19 @@ class DrivingModel(pl.LightningModule):
             _recursive_=False
         )
             
-        self.language_model = hydra.utils.instantiate(
-            self.language_model,
-            cache_dir=cache_dir,
-            _recursive_=False
-        )
+        # First, manually instantiate language_model to ensure it's a proper LLM instance
+        from simlingo_training.models.language_model.llm import LLM
+        
+        # Extract language_model configuration
+        lm_config = dict(self.language_model)
+        # Remove any None values that might cause issues
+        lm_config = {k: v for k, v in lm_config.items() if v is not None}
+        
+        # Manually create the LLM instance
+        self.language_model = LLM(**lm_config)
+        
+        print(f"Language model successfully instantiated: {type(self.language_model)}")
+        print(f"Language model has embed_tokens: {hasattr(self.language_model, 'embed_tokens')}")
 
         self.all_predictions = {}
         self.all_losses = {}

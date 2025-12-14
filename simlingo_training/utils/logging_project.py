@@ -16,7 +16,8 @@ from hydra.utils import get_original_cwd, to_absolute_path
 def setup_logging(cfg, save_folder=None):
     
     if save_folder is None:
-        working_dir = get_original_cwd()
+        # Use current working directory instead of get_original_cwd() to avoid Hydra initialization issues
+        working_dir = os.getcwd()
         save_folder = 'log'
     else:
         # get working dir
@@ -30,35 +31,43 @@ def setup_logging(cfg, save_folder=None):
     with open(os.path.join(save_folder, "args.txt"), "w") as f:
         json.dump(args.__dict__, f, indent=2)
 
-    # Log git
-    sha = (
-        subprocess.check_output(
-            ["git", "-C", f"{working_dir}", "rev-parse", "HEAD"]
+    # Log git - handle git repository detection gracefully
+    try:
+        # Log git
+        sha = (
+            subprocess.check_output(
+                ["git", "-C", f"{working_dir}", "rev-parse", "HEAD"]
+            )
+            .decode("ascii")
+            .strip()
         )
-        .decode("ascii")
-        .strip()
-    )
-    commit = (
-        subprocess.check_output(["git", "-C", f"{working_dir}", "log", "-1"])
-        .decode("ascii")
-        .strip()
-    )
-    branch = (
-        subprocess.check_output(["git", "-C", f"{working_dir}", "branch"])
-        .decode("ascii")
-        .strip()
-    )
-    repo = Repo(working_dir)
+        commit = (
+            subprocess.check_output(["git", "-C", f"{working_dir}", "log", "-1"])
+            .decode("ascii")
+            .strip()
+        )
+        branch = (
+            subprocess.check_output(["git", "-C", f"{working_dir}", "branch"])
+            .decode("ascii")
+            .strip()
+        )
+        repo = Repo(working_dir)
 
-    with open(os.path.join(save_folder, "git_info.txt"), "w") as f:
-        # write current date and time
-        f.write(
-            f"Run started at: {str(datetime.now().strftime('%d/%m/%Y %H:%M:%S'))}\n"
-        )
-        f.write(f"Git state: {sha}\n")
-        f.write(f"Git commit: {commit}\n")
-        f.write(f"Git branch: {branch}\n\n")
-        f.write(f"{repo.git.diff('HEAD')}")
+        with open(os.path.join(save_folder, "git_info.txt"), "w") as f:
+            # write current date and time
+            f.write(
+                f"Run started at: {str(datetime.now().strftime('%d/%m/%Y %H:%M:%S'))}\n"
+            )
+            f.write(f"Git state: {sha}\n")
+            f.write(f"Git commit: {commit}\n")
+            f.write(f"Git branch: {branch}\n\n")
+            f.write(f"{repo.git.diff('HEAD')}")
+    except Exception as e:
+        # If git operations fail, log the error but continue
+        print(f"Warning: Failed to log git info: {e}")
+        with open(os.path.join(save_folder, "git_info.txt"), "w") as f:
+            f.write(f"Run started at: {str(datetime.now().strftime('%d/%m/%Y %H:%M:%S'))}\n")
+            f.write(f"Git info not available: {e}\n")
 
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",

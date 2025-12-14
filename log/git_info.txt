@@ -1,0 +1,85 @@
+Run started at: 13/12/2025 04:23:54
+Git state: 743b243afd6cf5ff51b9fa1f8cac86f22d569684
+Git commit: commit 743b243afd6cf5ff51b9fa1f8cac86f22d569684
+Author: RenzKa <katrin.renz10@gmail.com>
+Date:   Mon Aug 25 15:17:03 2025 +0200
+
+    HF token placeholder
+Git branch: * main
+
+diff --git a/simlingo_base_training/config/config.yaml b/simlingo_base_training/config/config.yaml
+index 448e891..add3693 100644
+--- a/simlingo_base_training/config/config.yaml
++++ b/simlingo_base_training/config/config.yaml
+@@ -1,3 +1,4 @@
++
+ defaults:
+   - train_base
+   - experiment: debug #simlingo_base_1
+\ No newline at end of file
+diff --git a/simlingo_training/config/data_module/carla_no_buckets.yaml b/simlingo_training/config/data_module/carla_no_buckets.yaml
+index 98f58a2..5495298 100644
+--- a/simlingo_training/config/data_module/carla_no_buckets.yaml
++++ b/simlingo_training/config/data_module/carla_no_buckets.yaml
+@@ -1,3 +1,7 @@
+-
++_target_: simlingo_training.dataloader.datamodule.DataModule
+ defaults:
+-  - driving
+\ No newline at end of file
++  - driving
++batch_size: 2
++num_workers: 0
++base_dataset:
++  data_path: /root/simlingo/Bench2Drive-Mini
+\ No newline at end of file
+diff --git a/simlingo_training/config/experiment/debug.yaml b/simlingo_training/config/experiment/debug.yaml
+index fccd971..ca3b0ca 100644
+--- a/simlingo_training/config/experiment/debug.yaml
++++ b/simlingo_training/config/experiment/debug.yaml
+@@ -18,11 +18,12 @@ model:
+     variant: 'OpenGVLab/InternVL2-1B'
+ 
+ data_module:
++  _target_: simlingo_training.dataloader.datamodule.DataModule
+   batch_size: 2
+   num_workers: 0
+   # dreamer_dataset: null
+   base_dataset:
+-    data_path: database/simlingo
++    data_path: /root/simlingo/Bench2Drive-mini  
+     bucket_path: database/bucketsv2_simlingo
+     pred_len: 11
+     cut_bottom_quarter: True
+diff --git a/train_simlingo_seed1.sh b/train_simlingo_seed1.sh
+index 7595feb..e3a011c 100644
+--- a/train_simlingo_seed1.sh
++++ b/train_simlingo_seed1.sh
+@@ -8,6 +8,9 @@
+ #SBATCH --error=/YOUR_PATH/results/logs/slv2_%a_%A.err   # File to which STDERR will be written
+ #SBATCH --partition=YOUR_PARTITION
+ 
++
++s
++
+ # print info about current job
+ scontrol show job $SLURM_JOB_ID
+ 
+@@ -18,10 +21,14 @@ pwd
+ export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla/":${PYTHONPATH}
+ export WORK_DIR=~/coding/07_simlingo/simlingo_cleanup
+ export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
++export PYTHONPATH=/root/simlingo:$PYTHONPATH
++
++# 4. 关键：设置HuggingFace镜像
++export HF_ENDPOINT=https://hf-mirror.com
+ 
+ export MASTER_ADDR=localhost
+ export NCCL_DEBUG=INFO
+ 
+ export OMP_NUM_THREADS=64 # Limits pytorch to spawn at most num cpus cores threads
+ export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
+-WANDB__SERVICE_WAIT=300 python simlingo_training/train.py experiment=simlingo_seed1 data_module.batch_size=8 gpus=8 name=simlingo_seed1
+\ No newline at end of file
++WANDB__SERVICE_WAIT=300 python simlingo_training/train.py experiment=simlingo_seed1 data_module.batch_size=8 gpus=8 name=simlingo_seed1 data_module.base_dataset.data_path=/simlingo/Bench2Drive-mini 
+\ No newline at end of file

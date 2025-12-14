@@ -1,0 +1,28 @@
+{
+  "templates": [
+    "I imagine {scenario} in this situation.",
+    "If I were to {action}, what would happen?",
+    "This reminds me of {memory}.",
+    "I wonder what would happen if {condition}.",
+    "In a perfect world, this would be {ideal}.",
+    "I'm thinking about {thought}.",
+    "This makes me feel {emotion}.",
+    "I envision {vision}.",
+    "What if {hypothetical}?",
+    "I dream of {aspiration}."
+  ],
+  "placeholders": {
+    "scenario": ["a different outcome", "an alternative path", "a better solution"],
+    "action": ["take a different route", "make another choice", "try something new"],
+    "memory": ["a similar experience", "something I learned", "a past event"],
+    "condition": ["things were different", "I had more time", "the weather changed"],
+    "ideal": ["smoother", "safer", "more efficient"],
+    "thought": ["the possibilities", "the consequences", "the future"],
+    "emotion": ["curious", "hopeful", "concerned"],
+    "vision": ["a better way", "an improved system", "a safer environment"],
+    "hypothetical": ["I could fly", "the road was empty", "I had superpowers"],
+    "aspiration": ["safer roads", "better technology", "improved driving"],
+    "negative": ["a dangerous situation", "an accident", "a problem"],
+    "positive": ["a successful outcome", "a good decision", "a safe journey"]
+  }
+}
